@@ -7,13 +7,15 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: yayinla
   cancel-in-progress: true
 
 jobs:
-  yayinla:
+  derle:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,9 +29,26 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+      # Pages kaynağı "Deploy from a branch → gh-pages" seçiliyse site bu daldan yayınlanır.
       - name: gh-pages dalına gönder
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           force_orphan: true
+
+  # Pages kaynağı "GitHub Actions" seçiliyse site bu adımla yayınlanır.
+  # Kaynak gh-pages dalıysa bu adım hata verebilir; site o durumda daldan yayınlandığı için iş başarısız sayılmaz.
+  pages:
+    needs: derle
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    environment:
+      name: github-pages
+      url: ${{ steps.yayin.outputs.page_url }}
+    steps:
+      - id: yayin
+        uses: actions/deploy-pages@v4
