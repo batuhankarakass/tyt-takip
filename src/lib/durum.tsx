@@ -1,6 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { bulutDepo, supabase, yerelDepo, yerelOku, yeniId, type Depo } from "./depo";
+import {
+  bulutDepo,
+  profilAdiDegistir,
+  profilleriOku,
+  profilOlustur as yerelProfilOlustur,
+  profilSec as yerelProfilSec,
+  profilSil as yerelProfilSil,
+  supabase,
+  yerelDepo,
+  yerelOku,
+  yeniId,
+  type Depo,
+  type Profil,
+} from "./depo";
+import { yeniSatirlar, type Tasima } from "./tasima";
 import { konuOzetleri } from "./hesap";
 import { type Ayarlar, type Deneme, type Kayit, type KonuOzet, type Odak, type Veri } from "./types";
 
@@ -24,6 +38,16 @@ interface Baglam {
   hepsiniDegistir: (v: Veri) => Promise<void>;
   cihazVerisiniBulutaAktar: () => Promise<number>;
   cikis: () => Promise<void>;
+  /** Ekranda görünen öğrenci adı. */
+  isim: string;
+  profiller: Profil[];
+  aktifProfil: Profil | null;
+  profilOlustur: (ad: string) => void;
+  profilSec: (id: string) => void;
+  profilSil: (id: string) => void;
+  isimDegistir: (ad: string) => Promise<void>;
+  /** Taşıma bağlantısıyla gelen veriyi alır; eklenen satır sayısını döndürür. */
+  tasimaAl: (t: Tasima) => Promise<number>;
 }
 
 const Ctx = createContext<Baglam | null>(null);
@@ -31,12 +55,13 @@ const Ctx = createContext<Baglam | null>(null);
 export function VeriSaglayici({ children }: { children: ReactNode }) {
   const [oturum, setOturum] = useState<Session | null>(null);
   const [oturumHazir, setOturumHazir] = useState(!supabase);
-  const [veri, setVeri] = useState<Veri>(() => yerelOku());
+  const [profilKaydi, setProfilKaydi] = useState(profilleriOku);
+  const [veri, setVeri] = useState<Veri>(() => yerelOku(profilKaydi.aktif));
   const [yukleniyor, setYukleniyor] = useState(!!supabase);
   const [hata, setHata] = useState<string | null>(null);
   const [bildirim, setBildirim] = useState<string | null>(null);
   const depoRef = useRef<Depo>(null as unknown as Depo);
-  if (!depoRef.current) depoRef.current = yerelDepo();
+  if (!depoRef.current) depoRef.current = yerelDepo(profilKaydi.aktif);
   const bildirimZamani = useRef<number | undefined>(undefined);
   // En güncel veri: art arda yapılan kayıtlar birbirinin üstüne yazmasın, hata olursa doğru hale dönülsün.
   const veriRef = useRef(veri);
@@ -58,7 +83,7 @@ export function VeriSaglayici({ children }: { children: ReactNode }) {
   const kullaniciId = oturum?.user.id;
   useEffect(() => {
     if (!oturumHazir) return;
-    const depo = supabase && oturum ? bulutDepo(supabase, oturum.user) : yerelDepo();
+    const depo = supabase && oturum ? bulutDepo(supabase, oturum.user) : yerelDepo(profilleriOku().aktif);
     depoRef.current = depo;
     setYukleniyor(true);
     depo
@@ -89,12 +114,64 @@ export function VeriSaglayici({ children }: { children: ReactNode }) {
     }
   }, [veriYaz]);
 
+  // Bu cihazdaki başka bir profile geç: depo ve ekrandaki veri birlikte değişir.
+  const profileGec = useCallback(
+    (id: string | null) => {
+      depoRef.current = yerelDepo(id);
+      veriYaz(yerelOku(id));
+      setProfilKaydi(profilleriOku());
+    },
+    [veriYaz],
+  );
+
   const degistir = <T extends { id: string }>(liste: T[], s: T) =>
     liste.some((x) => x.id === s.id) ? liste.map((x) => (x.id === s.id ? s : x)) : [...liste, s];
 
   const deger = useMemo<Baglam>(() => {
     const ozetler = konuOzetleri(veri.ayarlar, veri.kayitlar);
+    const bulutta = depoRef.current.ad === "bulut";
+    const aktifProfil = profilKaydi.liste.find((p) => p.id === profilKaydi.aktif) ?? null;
+    const isim = (bulutta ? veri.ayarlar.ad : aktifProfil?.ad) || veri.ayarlar.ad || "";
     return {
+      isim,
+      profiller: profilKaydi.liste,
+      aktifProfil,
+      profilOlustur: (ad) => {
+        const p = yerelProfilOlustur(ad, { kayitlar: [], denemeler: [], odaklar: [], ayarlar: { ...veriRef.current.ayarlar, ad: ad.trim(), sinavTarihi: undefined } });
+        profileGec(p.id);
+      },
+      profilSec: (id) => {
+        yerelProfilSec(id);
+        profileGec(id);
+      },
+      profilSil: (id) => {
+        yerelProfilSil(id);
+        profileGec(profilleriOku().aktif);
+      },
+      isimDegistir: async (ad) => {
+        if (!bulutta && aktifProfil) {
+          profilAdiDegistir(aktifProfil.id, ad);
+          setProfilKaydi(profilleriOku());
+        }
+        await deger.ayarGuncelle({ ad: ad.trim() });
+      },
+      tasimaAl: async (t) => {
+        if (!bulutta) {
+          // Aynı adlı profil varsa ona ekle (bağlantı iki kez açılırsa çift kayıt olmaz), yoksa yeni profil aç.
+          const ayni = profilleriOku().liste.find((p) => p.ad.toLocaleLowerCase("tr") === t.ad.toLocaleLowerCase("tr"));
+          if (!ayni) {
+            const p = yerelProfilOlustur(t.ad, { ...t.veri, ayarlar: { ...t.veri.ayarlar, ad: t.ad } });
+            profileGec(p.id);
+            return t.veri.kayitlar.length + t.veri.denemeler.length + t.veri.odaklar.length;
+          }
+          yerelProfilSec(ayni.id);
+          profileGec(ayni.id);
+        }
+        const ek = yeniSatirlar(veriRef.current, t.veri);
+        const n = ek.kayitlar.length + ek.denemeler.length + ek.odaklar.length;
+        if (n) await deger.topluEkle(ek);
+        return n;
+      },
       veri,
       ozetler,
       yukleniyor,
@@ -139,13 +216,7 @@ export function VeriSaglayici({ children }: { children: ReactNode }) {
         });
       },
       cihazVerisiniBulutaAktar: async () => {
-        const yerel = yerelOku();
-        const varOlan = new Set([...veriRef.current.kayitlar, ...veriRef.current.denemeler, ...veriRef.current.odaklar].map((x) => x.id));
-        const ek = {
-          kayitlar: yerel.kayitlar.filter((x) => !varOlan.has(x.id)),
-          denemeler: yerel.denemeler.filter((x) => !varOlan.has(x.id)),
-          odaklar: yerel.odaklar.filter((x) => !varOlan.has(x.id)),
-        };
+        const ek = yeniSatirlar(veriRef.current, yerelOku(profilleriOku().aktif));
         const n = ek.kayitlar.length + ek.denemeler.length + ek.odaklar.length;
         if (n) await deger.topluEkle(ek);
         return n;
@@ -155,7 +226,7 @@ export function VeriSaglayici({ children }: { children: ReactNode }) {
       },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [veri, yukleniyor, oturum, hata, bildirim]);
+  }, [veri, yukleniyor, oturum, hata, bildirim, profilKaydi]);
 
   return <Ctx.Provider value={deger}>{children}</Ctx.Provider>;
 }

@@ -8,7 +8,7 @@ import { bugun, gunEkle, gunFarki, gunAdi, uzunTarih } from "../lib/tarih";
 const turIkon: Record<OneriTur, IkonAd> = { seri: "ates", gecis: "ok", tekrar: "sifirla", kontrol: "ok", yeni: "kayit", zayif: "uyari", hatirlat: "sifirla" };
 
 export function Bugun() {
-  const { veri, ozetler } = useVeri();
+  const { veri, ozetler, isim } = useVeri();
   const { kayitAc, git, sayacAc } = useGezinti();
   const b = bugun();
   const s = seri(veri.kayitlar, b);
@@ -26,6 +26,7 @@ export function Bugun() {
   if (veri.kayitlar.length === 0) {
     return (
       <div className="sayfa">
+        {isim && <h1 className="selam">Merhaba, {isim}</h1>}
         <Kart>
           <Bos ikon="kayit" baslik="İlk kaydını gir">
             <p>Çalışmayı bitirince tek satır ekle: ders, konu, aşama, çözülen, doğru ve neyde takıldığın. Gerisini uygulama hesaplar.</p>
@@ -46,6 +47,7 @@ export function Bugun() {
         <p className="uyari-metin">Önizleme örnek verilerle açıldı. Kendi verinle başlamak için Ayarlar → Tüm verileri sil.</p>
       )}
       <div className="ust-ozet">
+        {isim && <h1 className="selam">Merhaba, {isim}</h1>}
         <div className="gun-baslik">
           <span className="soluk">{uzunTarih(b)}</span>
           {kalanGun !== null && kalanGun >= 0 && <span className="sinav-sayac">Sınava {kalanGun} gün</span>}

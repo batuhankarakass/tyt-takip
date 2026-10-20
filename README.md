@@ -26,6 +26,10 @@ azsa ya da başarı %70'in altındaysa *Devam*, değilse *Kapandı*. Yüzdeler h
 - **Deneme**: TYT deneme netleri (Türkçe 40, Sosyal 20, Temel Matematik 40, Fen 20; 4 yanlış 1 doğruyu götürür), gelişim grafiği.
 - **Sayaç**: pomodoro; tur bitince ses, titreşim ve bildirim. Süre konuya bağlanıp kayda aktarılabilir.
 - **Analiz**: Excel'deki Haftalık Özet + "bakılacak 3 şey", günlük soru grafiği (aşamalara göre), haftalık kontrol başarısı, ders bazlı tablo.
+- **Profiller**: bir cihazda birden fazla öğrenci (ör. kardeşler) ayrı profillerde çalışır. İlk açılışta ad sorulur.
+- **Başka cihaza taşıma**: Ayarlar → "Taşıma bağlantısı oluştur" profilin tüm verisini sıkıştırıp bir bağlantıya koyar
+  (`?al=...`). Bağlantı diğer cihazda açılınca aynı adlı profil oluşur; aynı bağlantı tekrar açılırsa çift kayıt olmaz.
+  Veri hiçbir sunucuya gitmez.
 - **Ayarlar**: günlük hedef, sınav tarihi, Excel/Google Sheets'ten içe aktarma (CSV veya kopyala-yapıştır), CSV/JSON yedek.
 
 ## Geliştirme
@@ -65,7 +69,8 @@ Giriş yapan kullanıcı, daha önce misafir olarak girdiği verileri Ayarlar �
 src/data/mufredat.ts   konu listesi, TYT testleri, aşama tanımları
 src/lib/hesap.ts       durum kuralı, özetler, seri, öneriler, net hesabı (saf fonksiyonlar, testli)
 src/lib/aktar.ts       Excel/CSV içe aktarma, dışa aktarma, örnek veri
-src/lib/depo.ts        yerel (localStorage) ve Supabase depoları
+src/lib/depo.ts        profiller, yerel (localStorage) ve Supabase depoları
+src/lib/tasima.ts      profil taşıma bağlantısı (sıkıştırma + ?al= parametresi)
 src/lib/durum.tsx      uygulama durumu (React context)
 src/lib/sayac.tsx      pomodoro sayacı
 src/pages/*            ekranlar

@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Ikon, Kart, OnayDugme, SayiAlani } from "../components/ui";
 import type { Veri } from "../lib/types";
+import { tasimaBaglantisi } from "../lib/tasima";
 import { dosyaIndir, gunlukKayitOku, jsonOku, kayitlariCsv, ornekVeri, veriJson, type IceAktarSonuc } from "../lib/aktar";
 import { supabase } from "../lib/depo";
 import { useVeri } from "../lib/durum";
@@ -50,6 +51,8 @@ export function Ayarlar({ girisAc }: { girisAc: () => void }) {
   return (
     <div className="sayfa">
       <div className="sayfa-baslik"><h1>Ayarlar</h1></div>
+
+      <ProfilKart />
 
       <Kart baslik="Hesap">
         {depo === "bulut" && oturum ? (
@@ -147,5 +150,91 @@ export function Ayarlar({ girisAc }: { girisAc: () => void }) {
         </ul>
       </Kart>
     </div>
+  );
+}
+
+function ProfilKart() {
+  const { veri, depo, isim, profiller, aktifProfil, profilOlustur, profilSec, profilSil, isimDegistir, bildir } = useVeri();
+  const [ad, setAd] = useState(isim);
+  const [yeniAd, setYeniAd] = useState<string | null>(null);
+  const [baglanti, setBaglanti] = useState<string | null>(null);
+  const [kopyalandi, setKopyalandi] = useState(false);
+  useEffect(() => {
+    setAd(isim);
+    setBaglanti(null);
+  }, [isim, aktifProfil?.id]);
+
+  const adKaydet = () => {
+    if (ad.trim() && ad.trim() !== isim) isimDegistir(ad).then(() => bildir("Ad kaydedildi"), () => {});
+    else setAd(isim);
+  };
+
+  const baglantiOlustur = async () => {
+    setKopyalandi(false);
+    setBaglanti(await tasimaBaglantisi({ ad: isim || "Profil", veri }));
+  };
+
+  const kopyala = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    const giris = e.currentTarget.parentElement?.parentElement?.querySelector("input");
+    try {
+      await navigator.clipboard.writeText(baglanti ?? "");
+      setKopyalandi(true);
+    } catch {
+      giris?.select();
+    }
+  };
+
+  return (
+    <Kart baslik="Profil" className="profil-kart">
+      <div className="form">
+        <label>
+          Adın
+          <input id="profil-ad" value={ad} maxLength={40} onChange={(e) => setAd(e.target.value)} onBlur={adKaydet} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
+        </label>
+      </div>
+
+      {depo === "yerel" && (
+        <>
+          <h3 className="ara-baslik">Bu cihazdaki profiller</h3>
+          <p className="soluk kucuk">Aynı telefonu kardeşler kullanıyorsa herkes kendi profilinde çalışır, kayıtlar karışmaz.</p>
+          <ul className="profil-liste">
+            {profiller.map((p) => (
+              <li key={p.id}>
+                <button className={p.id === aktifProfil?.id ? "secili" : ""} onClick={() => p.id !== aktifProfil?.id && profilSec(p.id)} aria-pressed={p.id === aktifProfil?.id}>
+                  <span className="profil-cip" aria-hidden>{(p.ad || "?").slice(0, 1).toLocaleUpperCase("tr")}</span>
+                  {p.ad || "Adsız"}
+                  {p.id === aktifProfil?.id && <span className="soluk kucuk">· açık</span>}
+                </button>
+                <OnayDugme className="ikon-dugme" ikon="cop" etiket={`${p.ad} profilini sil`} soru="Profil ve tüm kayıtları silinsin mi?" evet="Sil" onay={() => { profilSil(p.id); bildir(`${p.ad} profili silindi`); }} />
+              </li>
+            ))}
+          </ul>
+          {yeniAd === null ? (
+            <button className="dugme" onClick={() => setYeniAd("")}><Ikon ad="kayit" boyut={16} /> Yeni profil</button>
+          ) : (
+            <form className="satir-giris" onSubmit={(e) => { e.preventDefault(); if (yeniAd.trim()) { profilOlustur(yeniAd); setYeniAd(null); bildir(`${yeniAd.trim()} profili açıldı`); } }}>
+              <input id="yeni-profil-ad" value={yeniAd} onChange={(e) => setYeniAd(e.target.value)} placeholder="Ad" maxLength={40} autoFocus aria-label="Yeni profil adı" />
+              <button className="dugme dugme-ana" disabled={!yeniAd.trim()}>Oluştur</button>
+              <button type="button" className="dugme-metin" onClick={() => setYeniAd(null)}>Vazgeç</button>
+            </form>
+          )}
+        </>
+      )}
+
+      <h3 className="ara-baslik">Başka cihaza taşı</h3>
+      <p className="soluk kucuk">
+        Bu profilin tüm kayıtlarını bir bağlantıya koyar. Bağlantıyı diğer telefonda açınca "{isim || "profil"}" orada da oluşur. Veriler hiçbir sunucuya gitmez, sadece bağlantının içindedir; bağlantıyı kimle paylaştığına dikkat et.
+      </p>
+      <button className="dugme" onClick={baglantiOlustur}>Taşıma bağlantısı oluştur</button>
+      {baglanti && (
+        <div className="baglanti-kutu">
+          <input id="tasima-baglanti" readOnly value={baglanti} onFocus={(e) => e.currentTarget.select()} aria-label="Taşıma bağlantısı" />
+          <div className="dugme-grup">
+            <button className="dugme dugme-ana" onClick={kopyala}>{kopyalandi ? "Kopyalandı" : "Kopyala"}</button>
+            <a className="dugme" href={`https://wa.me/?text=${encodeURIComponent(baglanti)}`} target="_blank" rel="noreferrer">WhatsApp'ta gönder</a>
+          </div>
+        </div>
+      )}
+    </Kart>
   );
 }

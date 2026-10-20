@@ -40,6 +40,7 @@ export interface Odak {
 }
 
 export interface Ayarlar {
+  ad?: string; // öğrencinin adı
   gunlukHedef: number; // soru
   calismaDk: number;
   molaDk: number;

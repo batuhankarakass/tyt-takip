@@ -18,11 +18,82 @@ export interface Depo {
   temizle(): Promise<void>;
 }
 
-const ANAHTAR = "tyt-takip:veri:v1";
+// Bir cihazda birden fazla profil (öğrenci) olabilir; her profilin verisi ayrı anahtarda durur.
+export interface Profil {
+  id: string;
+  ad: string;
+}
 
-export function yerelOku(): Veri {
+interface ProfilKaydi {
+  aktif: string | null;
+  liste: Profil[];
+}
+
+const PROFILLER = "tyt-takip:profiller:v1";
+const ESKI_ANAHTAR = "tyt-takip:veri:v1";
+const veriAnahtari = (id: string) => `tyt-takip:veri:v1:${id}`;
+
+function profilleriYaz(k: ProfilKaydi) {
   try {
-    const ham = localStorage.getItem(ANAHTAR);
+    localStorage.setItem(PROFILLER, JSON.stringify(k));
+  } catch {
+    /* depolama kapalı */
+  }
+}
+
+export function profilleriOku(): ProfilKaydi {
+  try {
+    const h = localStorage.getItem(PROFILLER);
+    if (h) return JSON.parse(h) as ProfilKaydi;
+    // Profilsiz eski sürümün verisi varsa ilk profile taşı.
+    const eski = localStorage.getItem(ESKI_ANAHTAR);
+    if (eski) {
+      const id = yeniId();
+      localStorage.setItem(veriAnahtari(id), eski);
+      localStorage.removeItem(ESKI_ANAHTAR);
+      const k = { aktif: id, liste: [{ id, ad: "Profilim" }] };
+      profilleriYaz(k);
+      return k;
+    }
+  } catch {
+    /* depolama kapalı */
+  }
+  return { aktif: null, liste: [] };
+}
+
+export function profilOlustur(ad: string, veri?: Veri): Profil {
+  const k = profilleriOku();
+  const p = { id: yeniId(), ad: ad.trim() };
+  if (veri) yerelYaz(p.id, veri);
+  profilleriYaz({ aktif: p.id, liste: [...k.liste, p] });
+  return p;
+}
+
+export function profilSec(id: string) {
+  const k = profilleriOku();
+  if (k.liste.some((p) => p.id === id)) profilleriYaz({ ...k, aktif: id });
+}
+
+export function profilAdiDegistir(id: string, ad: string) {
+  const k = profilleriOku();
+  profilleriYaz({ ...k, liste: k.liste.map((p) => (p.id === id ? { ...p, ad: ad.trim() } : p)) });
+}
+
+export function profilSil(id: string) {
+  const k = profilleriOku();
+  const liste = k.liste.filter((p) => p.id !== id);
+  try {
+    localStorage.removeItem(veriAnahtari(id));
+  } catch {
+    /* depolama kapalı */
+  }
+  profilleriYaz({ aktif: k.aktif === id ? (liste[0]?.id ?? null) : k.aktif, liste });
+}
+
+export function yerelOku(id: string | null): Veri {
+  if (!id) return BOS_VERI;
+  try {
+    const ham = localStorage.getItem(veriAnahtari(id));
     if (!ham) return BOS_VERI;
     const v = JSON.parse(ham) as Partial<Veri>;
     return {
@@ -36,40 +107,24 @@ export function yerelOku(): Veri {
   }
 }
 
-function yerelYaz(v: Veri) {
+function yerelYaz(id: string | null, v: Veri) {
+  if (!id) return;
   try {
-    localStorage.setItem(ANAHTAR, JSON.stringify(v));
+    localStorage.setItem(veriAnahtari(id), JSON.stringify(v));
   } catch {
     // Gizli sekme veya dolu depolama: veri bu oturumda bellekte kalır.
   }
 }
 
-let ornekUret: () => Pick<Veri, "kayitlar" | "denemeler" | "odaklar"> = () => ({ kayitlar: [], denemeler: [], odaklar: [] });
-export const ornekKaynagiAyarla = (f: typeof ornekUret) => (ornekUret = f);
-
-function ornekGosterildi() {
-  try {
-    if (localStorage.getItem("tyt-takip:ornek")) return true;
-    localStorage.setItem("tyt-takip:ornek", "1");
-  } catch {
-    /* depolama kapalı */
-  }
-  return false;
-}
-
 const listeAdi = { kayit: "kayitlar", deneme: "denemeler", odak: "odaklar" } as const;
 
-export function yerelDepo(): Depo {
-  let v = yerelOku();
-  // Tek dosyalık önizleme sürümü ilk açılışta boş görünmesin diye örnek verilerle başlar.
-  if (import.meta.env.MODE === "tek" && !v.kayitlar.length && !v.denemeler.length && !ornekGosterildi()) {
-    v = { ...v, ...ornekUret() };
-    yerelYaz(v);
-  }
+export function yerelDepo(id: string | null): Depo {
+  let v = yerelOku(id);
+  const yaz = () => yerelYaz(id, v);
   return {
     ad: "yerel",
     async yukle() {
-      v = yerelOku();
+      v = yerelOku(id);
       return v;
     },
     async kaydet(tur, satir) {
@@ -77,24 +132,24 @@ export function yerelDepo(): Depo {
       const liste = v[ad] as Satir[];
       const i = liste.findIndex((x) => x.id === satir.id);
       v = { ...v, [ad]: i >= 0 ? liste.map((x) => (x.id === satir.id ? satir : x)) : [...liste, satir] };
-      yerelYaz(v);
+      yaz();
     },
     async sil(tur, id) {
       const ad = listeAdi[tur];
       v = { ...v, [ad]: (v[ad] as Satir[]).filter((x) => x.id !== id) };
-      yerelYaz(v);
+      yaz();
     },
     async ayarKaydet(a) {
       v = { ...v, ayarlar: a };
-      yerelYaz(v);
+      yaz();
     },
     async topluYaz(yeni) {
       v = yeni;
-      yerelYaz(v);
+      yaz();
     },
     async temizle() {
       v = { ...v, kayitlar: [], denemeler: [], odaklar: [] };
-      yerelYaz(v);
+      yaz();
     },
   };
 }

@@ -124,3 +124,20 @@ describe("Excel'den içe aktarma", () => {
     expect(tabloAyristir("a\tb\n1\t2")).toEqual([["a", "b"], ["1", "2"]]);
   });
 });
+
+describe("profil taşıma bağlantısı", () => {
+  it("kodla → çöz aynı veriyi verir, Türkçe karakterler korunur", async () => {
+    const { tasimaKodla, tasimaCoz, yeniSatirlar } = await import("./tasima");
+    const veri = { kayitlar: [k("2026-10-08", "Sözcükte Anlam", 2, 122, 91, "Türkçe", "ğüşıöç")], denemeler: [], odaklar: [], ayarlar: { ...VARSAYILAN_AYARLAR, ad: "Gökçe" } };
+    const kod = await tasimaKodla({ ad: "Gökçe", veri });
+    expect(kod).toMatch(/^[A-Za-z0-9_-]+$/);
+    const c = await tasimaCoz(kod);
+    expect(c.ad).toBe("Gökçe");
+    expect(c.veri.kayitlar).toEqual(veri.kayitlar);
+    expect(yeniSatirlar(c.veri, c.veri).kayitlar).toHaveLength(0);
+  });
+  it("bozuk bağlantıda anlaşılır hata verir", async () => {
+    const { tasimaCoz } = await import("./tasima");
+    await expect(tasimaCoz("bozuk-kod")).rejects.toThrow(/Bağlantı bozuk/);
+  });
+});

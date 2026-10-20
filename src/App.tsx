@@ -10,6 +10,8 @@ import { Ayarlar } from "./pages/Ayarlar";
 import { Bugun } from "./pages/Bugun";
 import { Denemeler } from "./pages/Denemeler";
 import { Giris } from "./pages/Giris";
+import { Hosgeldin, TasimaAl } from "./pages/Hosgeldin";
+import { gelenKod } from "./lib/tasima";
 import { Kayitlar } from "./pages/Kayitlar";
 import { Konular } from "./pages/Konular";
 import { Sayac } from "./pages/Sayac";
@@ -38,9 +40,12 @@ function hashSekme(): SekmeAd {
 }
 
 export default function App() {
-  const { oturum, yukleniyor } = useVeri();
+  const { oturum, yukleniyor, depo, aktifProfil } = useVeri();
   const [misafir, setMisafir] = useState(misafirMi);
   const [girisZorla, setGirisZorla] = useState(false);
+  const [kod, setKod] = useState(gelenKod);
+
+  if (kod) return <TasimaAl kod={kod} bitti={() => setKod(null)} />;
 
   const girisGoster = !!supabase && !oturum && (!misafir || girisZorla);
   if (girisGoster)
@@ -64,6 +69,7 @@ export default function App() {
         <p className="soluk">Yükleniyor…</p>
       </div>
     );
+  if (depo === "yerel" && !aktifProfil) return <Hosgeldin />;
   return (
     <SayacSaglayici>
       <Kabuk girisAc={() => setGirisZorla(true)} />
@@ -72,7 +78,7 @@ export default function App() {
 }
 
 function Kabuk({ girisAc }: { girisAc: () => void }) {
-  const { hata, hataTemizle, bildirim } = useVeri();
+  const { hata, hataTemizle, bildirim, isim } = useVeri();
   const sayac = useSayac();
   const [sekme, setSekme] = useState<SekmeAd>(hashSekme);
   const [taslak, setTaslak] = useState<KayitTaslak | null>(null);
@@ -114,6 +120,11 @@ function Kabuk({ girisAc }: { girisAc: () => void }) {
             {sayac.calisiyor && sekme !== "sayac" && (
               <button className={`mini-sayac ${sayac.mod}`} onClick={() => git("sayac")}>
                 <Ikon ad="sayac" boyut={16} /> {dakikaSaniye(sayac.kalan)}
+              </button>
+            )}
+            {isim && (
+              <button className="profil-cip" onClick={() => git("ayarlar")} aria-label={`Profil: ${isim}`} title={isim}>
+                {isim.slice(0, 1).toLocaleUpperCase("tr")}
               </button>
             )}
             <button className={`ikon-dugme ${sekme === "ayarlar" ? "secili" : ""}`} onClick={() => git("ayarlar")} aria-label="Ayarlar">
