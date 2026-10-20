@@ -77,6 +77,9 @@ export function Analiz() {
       </Kart>
 
       <Kart baslik="Haftalık kontrol (A3) başarısı">
+        {haftalar.every((h) => h.kontrolBasari === null) && (
+          <p className="soluk kucuk">Henüz Aşama 3 kaydı yok. İlk kontrol testini girdiğinde haftalık başarı burada çizilir.</p>
+        )}
         <Cizgi
           ad="Kontrol başarısı"
           veri={haftalar.map((h) => ({

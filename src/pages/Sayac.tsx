@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { DERSLER } from "../data/mufredat";
-import { Ikon, Kart, Stat } from "../components/ui";
+import { Ikon, Kart, SayiAlani, Stat } from "../components/ui";
 import { useVeri } from "../lib/durum";
 import { useGezinti } from "../lib/gezinti";
 import { konuListesi } from "../lib/hesap";
@@ -87,11 +87,11 @@ export function Sayac() {
         <div className="form-ikili">
           <label>
             Çalışma (dk)
-            <input type="number" min={5} max={120} value={veri.ayarlar.calismaDk} onChange={(e) => ayarGuncelle({ calismaDk: Math.min(120, Math.max(5, Number(e.target.value) || 25)) })} />
+            <SayiAlani id="calisma-dk" deger={veri.ayarlar.calismaDk} min={5} max={120} kaydet={(n) => ayarGuncelle({ calismaDk: n })} />
           </label>
           <label>
             Mola (dk)
-            <input type="number" min={1} max={60} value={veri.ayarlar.molaDk} onChange={(e) => ayarGuncelle({ molaDk: Math.min(60, Math.max(1, Number(e.target.value) || 5)) })} />
+            <SayiAlani id="mola-dk" deger={veri.ayarlar.molaDk} min={1} max={60} kaydet={(n) => ayarGuncelle({ molaDk: n })} />
           </label>
         </div>
         <p className="soluk kucuk">Tur bitince ses çalar; izin verirsen bildirim de gelir. Sayaç sekme değiştirsen de çalışmaya devam eder.</p>

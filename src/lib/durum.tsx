@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Session } from "@supabase/supabase-js";
 import { bulutDepo, supabase, yerelDepo, yerelOku, yeniId, type Depo } from "./depo";
 import { konuOzetleri } from "./hesap";
-import { BOS_VERI, type Ayarlar, type Deneme, type Kayit, type KonuOzet, type Odak, type Veri } from "./types";
+import { type Ayarlar, type Deneme, type Kayit, type KonuOzet, type Odak, type Veri } from "./types";
 
 interface Baglam {
   veri: Veri;
@@ -38,6 +38,12 @@ export function VeriSaglayici({ children }: { children: ReactNode }) {
   const depoRef = useRef<Depo>(null as unknown as Depo);
   if (!depoRef.current) depoRef.current = yerelDepo();
   const bildirimZamani = useRef<number | undefined>(undefined);
+  // En güncel veri: art arda yapılan kayıtlar birbirinin üstüne yazmasın, hata olursa doğru hale dönülsün.
+  const veriRef = useRef(veri);
+  const veriYaz = useCallback((v: Veri) => {
+    veriRef.current = v;
+    setVeri(v);
+  }, []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -57,7 +63,7 @@ export function VeriSaglayici({ children }: { children: ReactNode }) {
     setYukleniyor(true);
     depo
       .yukle()
-      .then(setVeri)
+      .then(veriYaz)
       .catch((e: Error) => setHata(`Veriler yüklenemedi: ${e.message}`))
       .finally(() => setYukleniyor(false));
     // oturum nesnesi token yenilendikçe değişir; sadece kullanıcı değişince yeniden yükle.
@@ -72,19 +78,16 @@ export function VeriSaglayici({ children }: { children: ReactNode }) {
 
   // İyimser güncelleme: ekran hemen değişir, depo hata verirse eski hale döner.
   const uygula = useCallback(async (yeni: (v: Veri) => Veri, is: (d: Depo) => Promise<void>) => {
-    let onceki: Veri = BOS_VERI;
-    setVeri((v) => {
-      onceki = v;
-      return yeni(v);
-    });
+    const onceki = veriRef.current;
+    veriYaz(yeni(onceki));
     try {
       await is(depoRef.current);
     } catch (e) {
-      setVeri(onceki);
+      veriYaz(onceki);
       setHata(`Kaydedilemedi: ${(e as Error).message}. İnternet bağlantını kontrol et.`);
       throw e;
     }
-  }, []);
+  }, [veriYaz]);
 
   const degistir = <T extends { id: string }>(liste: T[], s: T) =>
     liste.some((x) => x.id === s.id) ? liste.map((x) => (x.id === s.id ? s : x)) : [...liste, s];
@@ -116,34 +119,28 @@ export function VeriSaglayici({ children }: { children: ReactNode }) {
         await uygula((v) => ({ ...v, odaklar: [...v.odaklar, s] }), (d) => d.kaydet("odak", s));
       },
       ayarGuncelle: async (a) => {
-        const yeni = { ...veri.ayarlar, ...a };
+        const yeni = { ...veriRef.current.ayarlar, ...a };
         await uygula((v) => ({ ...v, ayarlar: yeni }), (d) => d.ayarKaydet(yeni));
       },
       topluEkle: async (ek) => {
         const yeni: Veri = {
-          ...veri,
-          kayitlar: [...veri.kayitlar, ...(ek.kayitlar ?? [])],
-          denemeler: [...veri.denemeler, ...(ek.denemeler ?? [])],
-          odaklar: [...veri.odaklar, ...(ek.odaklar ?? [])],
+          ...veriRef.current,
+          kayitlar: [...veriRef.current.kayitlar, ...(ek.kayitlar ?? [])],
+          denemeler: [...veriRef.current.denemeler, ...(ek.denemeler ?? [])],
+          odaklar: [...veriRef.current.odaklar, ...(ek.odaklar ?? [])],
         };
-        const sadeceEk: Veri = { kayitlar: ek.kayitlar ?? [], denemeler: ek.denemeler ?? [], odaklar: ek.odaklar ?? [], ayarlar: veri.ayarlar };
+        const sadeceEk: Veri = { kayitlar: ek.kayitlar ?? [], denemeler: ek.denemeler ?? [], odaklar: ek.odaklar ?? [], ayarlar: veriRef.current.ayarlar };
         await uygula(() => yeni, (d) => (d.ad === "bulut" ? d.topluYaz(sadeceEk) : d.topluYaz(yeni)));
       },
       hepsiniDegistir: async (v) => {
-        const d = depoRef.current;
-        if (d.ad === "bulut") {
-          // Bulutta tam değiştirme: önce eski satırları sil.
-          await Promise.all([
-            ...veri.kayitlar.map((x) => d.sil("kayit", x.id)),
-            ...veri.denemeler.map((x) => d.sil("deneme", x.id)),
-            ...veri.odaklar.map((x) => d.sil("odak", x.id)),
-          ]);
-        }
-        await uygula(() => v, (dd) => dd.topluYaz(v));
+        await uygula(() => v, async (d) => {
+          await d.temizle();
+          await d.topluYaz(v);
+        });
       },
       cihazVerisiniBulutaAktar: async () => {
         const yerel = yerelOku();
-        const varOlan = new Set([...veri.kayitlar, ...veri.denemeler, ...veri.odaklar].map((x) => x.id));
+        const varOlan = new Set([...veriRef.current.kayitlar, ...veriRef.current.denemeler, ...veriRef.current.odaklar].map((x) => x.id));
         const ek = {
           kayitlar: yerel.kayitlar.filter((x) => !varOlan.has(x.id)),
           denemeler: yerel.denemeler.filter((x) => !varOlan.has(x.id)),

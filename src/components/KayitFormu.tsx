@@ -62,11 +62,11 @@ export function KayitFormu({ taslak, bitti }: { taslak: KayitTaslak; bitti: () =
       <div className="form-ikili">
         <label>
           Tarih
-          <input type="date" value={tarih} max={bugun()} onChange={(e) => setTarih(e.target.value)} required />
+          <input id="kayit-tarih" type="date" value={tarih} max={bugun()} onChange={(e) => setTarih(e.target.value)} required />
         </label>
         <label>
           Ders
-          <select value={ders} onChange={(e) => { setDers(e.target.value); setKonu(""); setYeniKonu(false); }} required>
+          <select id="kayit-ders" value={ders} onChange={(e) => { setDers(e.target.value); setKonu(""); setYeniKonu(false); }} required>
             <option value="">Seç…</option>
             {DERSLER.map((d) => <option key={d}>{d}</option>)}
           </select>
@@ -77,11 +77,11 @@ export function KayitFormu({ taslak, bitti }: { taslak: KayitTaslak; bitti: () =
         Konu
         {yeniKonu ? (
           <div className="satir-giris">
-            <input value={konu} onChange={(e) => setKonu(e.target.value)} placeholder="Konu adı" autoFocus />
+            <input id="kayit-konu" value={konu} onChange={(e) => setKonu(e.target.value)} placeholder="Konu adı" autoFocus />
             <button type="button" className="dugme-metin" onClick={() => { setYeniKonu(false); setKonu(""); }}>Listeden seç</button>
           </div>
         ) : (
-          <select value={konu} disabled={!ders} onChange={(e) => (e.target.value === "__yeni" ? (setYeniKonu(true), setKonu("")) : konuSec(e.target.value))}>
+          <select id="kayit-konu" value={konu} disabled={!ders} onChange={(e) => (e.target.value === "__yeni" ? (setYeniKonu(true), setKonu("")) : konuSec(e.target.value))}>
             <option value="">{ders ? "Seç…" : "Önce ders seç"}</option>
             {konular.map((k) => {
               const z = ozetler.find((o) => o.ders === ders && o.konu === k.konu);
@@ -115,11 +115,11 @@ export function KayitFormu({ taslak, bitti }: { taslak: KayitTaslak; bitti: () =
       <div className="form-uclu">
         <label>
           Çözülen
-          <input inputMode="numeric" pattern="[0-9]*" value={cozulen} onChange={(e) => setCozulen(e.target.value.replace(/\D/g, ""))} placeholder="35" />
+          <input id="kayit-cozulen" inputMode="numeric" pattern="[0-9]*" value={cozulen} onChange={(e) => setCozulen(e.target.value.replace(/\D/g, ""))} placeholder="35" />
         </label>
         <label>
           Doğru
-          <input inputMode="numeric" pattern="[0-9]*" value={dogru} onChange={(e) => setDogru(e.target.value.replace(/\D/g, ""))} placeholder="21" />
+          <input id="kayit-dogru" inputMode="numeric" pattern="[0-9]*" value={dogru} onChange={(e) => setDogru(e.target.value.replace(/\D/g, ""))} placeholder="21" />
         </label>
         <div className="canli-oran" aria-live="polite">
           <span>Doğruluk</span>
@@ -132,12 +132,12 @@ export function KayitFormu({ taslak, bitti }: { taslak: KayitTaslak; bitti: () =
 
       <label>
         <span className="etiket-satir">Not: neyde takıldın? <span className="soluk">(tek cümle)</span></span>
-        <input value={not} onChange={(e) => setNot(e.target.value)} placeholder="ör. negatif üslerde işaret hatası yapıyorum" maxLength={200} />
+        <input id="kayit-not" value={not} onChange={(e) => setNot(e.target.value)} placeholder="ör. negatif üslerde işaret hatası yapıyorum" maxLength={200} />
       </label>
 
       <label>
         <span className="etiket-satir">Süre (dk) <span className="soluk">(isteğe bağlı)</span></span>
-        <input inputMode="numeric" value={sure} onChange={(e) => setSure(e.target.value.replace(/\D/g, ""))} placeholder="45" />
+        <input id="kayit-sure" inputMode="numeric" value={sure} onChange={(e) => setSure(e.target.value.replace(/\D/g, ""))} placeholder="45" />
       </label>
 
       {hata && <p className="hata-metin" role="alert">{hata}</p>}

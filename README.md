@@ -38,6 +38,13 @@ npm run build      # dist/: kurulabilir PWA
 npm run build:tek  # dist-tek/index.html: tek dosyalık önizleme (örnek verilerle açılır)
 ```
 
+## Yayın
+
+`main` dalına yapılan her push'ta GitHub Actions testleri çalıştırır, siteyi derler ve `gh-pages` dalına koyar
+(`.github/workflows/yayinla.yml`). Site: https://batuhankarakass.github.io/tyt-takip/
+
+Pages kapalıysa bir kere açmak yeterli: Settings → Pages → Source: *Deploy from a branch*, Branch: `gh-pages` / `(root)`.
+
 ## Hesap ve bulut (isteğe bağlı)
 
 `.env` yoksa uygulama **misafir modunda** çalışır: veriler sadece o tarayıcıda durur.
@@ -46,8 +53,9 @@ Herkese açık kullanım için Supabase ile hesap sistemi açılır:
 1. [supabase.com](https://supabase.com)'da ücretsiz proje aç.
 2. SQL Editor'de `supabase/schema.sql` dosyasını çalıştır (tablo + satır güvenliği: herkes sadece kendi verisini görür).
 3. Authentication → URL Configuration'da sitenin adresini *Site URL* ve *Redirect URLs*'e ekle.
-4. `.env.example`'ı `.env` olarak kopyala, Settings → API'deki URL ve anon key'i yaz.
-5. `npm run build` ve `dist/` klasörünü yayınla (Vercel, Netlify, Cloudflare Pages, GitHub Pages; hepsi statik siteyi destekler).
+4. Yerelde: `.env.example`'ı `.env` olarak kopyala, Settings → API'deki URL ve anon key'i yaz.
+5. Yayında: GitHub reposunda Settings → Secrets and variables → Actions → *Variables* altına
+   `VITE_SUPABASE_URL` ve `VITE_SUPABASE_ANON_KEY` ekle; bir sonraki push'ta hesap sistemi açılır.
 
 Giriş yapan kullanıcı, daha önce misafir olarak girdiği verileri Ayarlar → "Bu cihazdaki misafir verisini hesaba aktar" ile hesabına taşıyabilir.
 

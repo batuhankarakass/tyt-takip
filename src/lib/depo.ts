@@ -14,6 +14,8 @@ export interface Depo {
   sil(tur: Tur, id: string): Promise<void>;
   ayarKaydet(a: Ayarlar): Promise<void>;
   topluYaz(v: Veri): Promise<void>;
+  /** Ayarlar dışındaki tüm satırları siler (yedekten geri yükleme ve "tümünü sil" için). */
+  temizle(): Promise<void>;
 }
 
 const ANAHTAR = "tyt-takip:veri:v1";
@@ -90,6 +92,10 @@ export function yerelDepo(): Depo {
       v = yeni;
       yerelYaz(v);
     },
+    async temizle() {
+      v = { ...v, kayitlar: [], denemeler: [], odaklar: [] };
+      yerelYaz(v);
+    },
   };
 }
 
@@ -150,6 +156,10 @@ export function bulutDepo(sb: SupabaseClient, user: User): Depo {
         const { error } = await sb.from(TABLO).upsert(satirlar.slice(i, i + 500));
         hata(error);
       }
+    },
+    async temizle() {
+      const { error } = await sb.from(TABLO).delete().eq("user_id", user.id).neq("tur", "ayarlar");
+      hata(error);
     },
   };
 }

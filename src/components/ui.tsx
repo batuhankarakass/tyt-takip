@@ -150,3 +150,29 @@ export function OnayDugme({ children, onay, soru = "Emin misin?", evet = "Evet",
     </button>
   );
 }
+
+/** Yazarken değeri zorlamayan sayı alanı: değer odak bırakılınca (veya Enter ile) sınırlar içine alınıp kaydedilir. */
+export function SayiAlani({ id, deger, min, max, adim = 1, kaydet }: { id: string; deger: number; min: number; max: number; adim?: number; kaydet: (n: number) => void }) {
+  const [metin, setMetin] = useState(String(deger));
+  useEffect(() => setMetin(String(deger)), [deger]);
+  const bitir = () => {
+    const n = Math.round(Number(metin));
+    const temiz = Number.isFinite(n) && metin.trim() !== "" ? Math.min(max, Math.max(min, n)) : deger;
+    setMetin(String(temiz));
+    if (temiz !== deger) kaydet(temiz);
+  };
+  return (
+    <input
+      id={id}
+      inputMode="numeric"
+      type="number"
+      min={min}
+      max={max}
+      step={adim}
+      value={metin}
+      onChange={(e) => setMetin(e.target.value)}
+      onBlur={bitir}
+      onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
+    />
+  );
+}

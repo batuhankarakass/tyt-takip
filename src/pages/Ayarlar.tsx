@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Ikon, Kart, OnayDugme } from "../components/ui";
+import { Ikon, Kart, OnayDugme, SayiAlani } from "../components/ui";
 import type { Veri } from "../lib/types";
 import { dosyaIndir, gunlukKayitOku, jsonOku, kayitlariCsv, ornekVeri, veriJson, type IceAktarSonuc } from "../lib/aktar";
 import { supabase } from "../lib/depo";
@@ -76,7 +76,7 @@ export function Ayarlar({ girisAc }: { girisAc: () => void }) {
         <div className="form form-ikili">
           <label>
             Günlük soru hedefi
-            <input type="number" min={10} max={1000} step={10} value={veri.ayarlar.gunlukHedef} onChange={(e) => ayarGuncelle({ gunlukHedef: Math.max(10, Number(e.target.value) || 100) })} />
+            <SayiAlani id="gunluk-hedef" deger={veri.ayarlar.gunlukHedef} min={10} max={1000} adim={10} kaydet={(n) => ayarGuncelle({ gunlukHedef: n })} />
           </label>
           <label>
             Sınav tarihi
